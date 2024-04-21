@@ -12,6 +12,7 @@ interface HomeProps {}
 
 const Home: React.FC<HomeProps> = () => {
   const [openWalletModal, setOpenWalletModal] = useState<boolean>(false)
+  const [cid, setCid] = useState<string>('bafkreibrr2cpyb6azlystftvf4uba4qt5v2ihdq43xtdefactz3j7snmvy')
   const { activeAddress, signer } = useWallet()
 
   const algodConfig = getAlgodConfigFromViteEnvironment()
@@ -57,14 +58,12 @@ const Home: React.FC<HomeProps> = () => {
             <button data-test-id="connect-wallet" className="btn m-2" onClick={toggleWalletModal}>
               Wallet Connection
             </button>
+
             {activeAddress && (
-              <CrustPin
-                sender={activeAddress!}
-                cid="bafkreibrr2cpyb6azlystftvf4uba4qt5v2ihdq43xtdefactz3j7snmvy"
-                algorand={algorand}
-                appClient={appClient}
-                size={22661}
-              />
+              <div>
+                <input className="input input-bordered" value={cid} onChange={(e) => setCid(e.currentTarget.value)} />
+                <CrustPin sender={activeAddress!} cid={cid} algorand={algorand} appClient={appClient} size={22661} />
+              </div>
             )}
           </div>
 

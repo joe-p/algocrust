@@ -6,6 +6,9 @@ import fs from 'fs'
 import nacl from 'tweetnacl'
 import { StorageOrderClient } from '../contracts/StorageOrderClient'
 
+const SIM_REQ = new algosdk.modelsv2.SimulateRequest({ allowEmptySignatures: true, txnGroups: [] })
+const FEE_SINK_SENDER = { addr: 'Y76M3MSY6DKBRHBL7C3NNDXGS5IIMQVQVUAB6MP4XEMMGVF2QWNPL226CA', signer: algosdk.makeEmptyTransactionSigner() }
+
 /**
  * Generate a web3 auth header from an Algorand account
  */
@@ -67,9 +70,11 @@ export async function getPrice(
   size: number,
   isPermanent: boolean = false,
 ) {
-  const result = await appClient.compose().getPrice({ size, is_permanent: isPermanent }).simulate()
+  const result = await (
+    await appClient.compose().getPrice({ size, is_permanent: isPermanent }, { sender: FEE_SINK_SENDER }).atc()
+  ).simulate(algorand.client.algod, SIM_REQ)
 
-  return result.methodResults[0].returnValue?.valueOf() as number
+  return Number(result.methodResults[0].returnValue?.valueOf())
 }
 
 /**
@@ -84,9 +89,9 @@ async function getOrderNode(algod: algosdk.Algodv2, appClient: StorageOrderClien
     await (
       await appClient
         .compose()
-        .getRandomOrderNode({}, { boxes: [new Uint8Array(Buffer.from('nodes'))] })
+        .getRandomOrderNode({}, { boxes: [new Uint8Array(Buffer.from('nodes'))], sender: FEE_SINK_SENDER })
         .atc()
-    ).simulate(algod)
+    ).simulate(algod, SIM_REQ)
   ).methodResults[0].returnValue?.valueOf() as string
 }
 
@@ -117,7 +122,7 @@ export async function placeOrder(
     amount: algokit.microAlgos(price),
   })
 
-  appClient.placeOrder({ seed, cid, size, is_permanent: isPermanent, merchant })
+  return await appClient.placeOrder({ seed, cid, size, is_permanent: isPermanent, merchant })
 }
 
 // async function main(network: 'testnet' | 'mainnet') {

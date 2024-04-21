@@ -1,6 +1,7 @@
-import { AlgorandClient } from '@algorandfoundation/algokit-utils'
+import { AlgorandClient, microAlgos } from '@algorandfoundation/algokit-utils'
 import { typesBundleForPolkadot } from '@crustio/type-definitions'
 import { ApiPromise, WsProvider } from '@polkadot/api'
+import { useState } from 'react'
 import { StorageOrderClient } from '../contracts/StorageOrderClient'
 import { getPrice, placeOrder } from '../utils/crust'
 
@@ -13,6 +14,8 @@ interface CrustPinInterface {
 }
 
 const CrustPin = ({ cid, algorand, appClient, size, sender }: CrustPinInterface) => {
+  const [price, setPrice] = useState<number>(0)
+
   // https://wiki.crust.network/docs/en/buildFileStoringDemo#5-query-order-status
   const crustChainEndpoint = 'wss://rpc.crust.network'
   const api = new ApiPromise({
@@ -28,18 +31,19 @@ const CrustPin = ({ cid, algorand, appClient, size, sender }: CrustPinInterface)
 
   queryOrderStatus()
 
+  getPrice(algorand, appClient, size, false)
+    .then((price) => {
+      setPrice(price)
+    })
+    .catch((e) => {
+      throw e
+    })
+
   const pinFile = async () => {
-    console.log('Pinning file:', cid)
-    const price = await getPrice(algorand, appClient, size, false)
-    console.log('Price:', price)
-    await placeOrder(algorand, appClient, sender, cid, size, price, false)
-    console.log('Order placed')
+    const result = await placeOrder(algorand, appClient, sender, cid, size, price, false)
+    console.log(`Order placed ${result.transaction.txID()}`)
   }
 
-  return (
-    <div>
-      <button onClick={pinFile}>Pin {cid}</button>
-    </div>
-  )
+  return <button className="btn m-2" disabled={price === 0} onClick={pinFile}>{`Pin for ${microAlgos(price).algos} ALGO`}</button>
 }
 export default CrustPin
