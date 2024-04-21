@@ -1,22 +1,35 @@
 // src/components/Home.tsx
+import { AlgorandClient, Config } from '@algorandfoundation/algokit-utils'
 import { useWallet } from '@txnlab/use-wallet'
 import React, { useState } from 'react'
 import ConnectWallet from './components/ConnectWallet'
-import Transact from './components/Transact'
+import CrustPin from './components/CrustPin'
+import { StorageOrderClient } from './contracts/StorageOrderClient'
+import { getAlgodConfigFromViteEnvironment } from './utils/network/getAlgoClientConfigs'
 
+Config.configure({ populateAppCallResources: true })
 interface HomeProps {}
 
 const Home: React.FC<HomeProps> = () => {
   const [openWalletModal, setOpenWalletModal] = useState<boolean>(false)
-  const [openDemoModal, setOpenDemoModal] = useState<boolean>(false)
-  const { activeAddress } = useWallet()
+  const { activeAddress, signer } = useWallet()
+
+  const algodConfig = getAlgodConfigFromViteEnvironment()
+  const algorand = AlgorandClient.fromConfig({ algodConfig })
+  algorand.setDefaultSigner(signer)
+
+  const appClient = new StorageOrderClient(
+    {
+      sender: { addr: activeAddress!, signer },
+      resolveBy: 'id',
+      // id: network === 'testnet' ? 507867511 : 1275319623,
+      id: 1275319623,
+    },
+    algorand.client.algod,
+  )
 
   const toggleWalletModal = () => {
     setOpenWalletModal(!openWalletModal)
-  }
-
-  const toggleDemoModal = () => {
-    setOpenDemoModal(!openDemoModal)
   }
 
   return (
@@ -44,16 +57,18 @@ const Home: React.FC<HomeProps> = () => {
             <button data-test-id="connect-wallet" className="btn m-2" onClick={toggleWalletModal}>
               Wallet Connection
             </button>
-
             {activeAddress && (
-              <button data-test-id="transactions-demo" className="btn m-2" onClick={toggleDemoModal}>
-                Transactions Demo
-              </button>
+              <CrustPin
+                sender={activeAddress!}
+                cid="bafkreibrr2cpyb6azlystftvf4uba4qt5v2ihdq43xtdefactz3j7snmvy"
+                algorand={algorand}
+                appClient={appClient}
+                size={22661}
+              />
             )}
           </div>
 
           <ConnectWallet openModal={openWalletModal} closeModal={toggleWalletModal} />
-          <Transact openModal={openDemoModal} setModalState={setOpenDemoModal} />
         </div>
       </div>
     </div>
