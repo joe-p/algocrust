@@ -15,6 +15,8 @@ interface CrustPinInterface {
 
 const CrustPin = ({ cid, algorand, appClient, size, sender }: CrustPinInterface) => {
   const [price, setPrice] = useState<number>(0)
+  const [loading, setLoading] = useState<boolean>(false)
+
 
   // https://wiki.crust.network/docs/en/buildFileStoringDemo#5-query-order-status
   const crustChainEndpoint = 'wss://rpc.crust.network'
@@ -31,7 +33,7 @@ const CrustPin = ({ cid, algorand, appClient, size, sender }: CrustPinInterface)
 
   queryOrderStatus()
 
-  getPrice(algorand, appClient, size, false)
+  getPrice(algorand, appClient, size, true)
     .then((price) => {
       setPrice(price)
     })
@@ -40,10 +42,16 @@ const CrustPin = ({ cid, algorand, appClient, size, sender }: CrustPinInterface)
     })
 
   const pinFile = async () => {
-    const result = await placeOrder(algorand, appClient, sender, cid, size, price, false)
+    setLoading(true)
+    const result = await placeOrder(algorand, appClient, sender, cid, size, price, true)
     console.log(`Order placed ${result.transaction.txID()}`)
+    setLoading(false)
   }
 
-  return <button className="btn m-2" disabled={price === 0} onClick={pinFile}>{`Pin for ${microAlgos(price).algos} ALGO`}</button>
+  return (
+    <button className="btn m-2" disabled={price === 0} onClick={pinFile}>
+      {loading ? <span className="loading loading-spinner" /> : `Pin for ${microAlgos(price).algos} ALGO`}
+    </button>
+  )
 }
 export default CrustPin
