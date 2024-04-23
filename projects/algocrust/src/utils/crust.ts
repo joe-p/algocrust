@@ -1,8 +1,7 @@
 import * as algokit from '@algorandfoundation/algokit-utils'
 import algosdk from 'algosdk'
 import axios from 'axios'
-import FormData from 'form-data'
-import fs from 'fs'
+import { ethers } from 'ethers'
 import nacl from 'tweetnacl'
 import { StorageOrderClient } from '../contracts/StorageOrderClient'
 
@@ -28,29 +27,34 @@ function getAuthHeader(account: algosdk.Account) {
  *
  * @param account Account to use to generate the auth header
  */
-async function uploadToIPFS(account: algosdk.Account) {
-  // Note: Not all gateways require this header
-  const headers = {
-    Authorization: `Basic ${getAuthHeader(account)}`,
-  }
-
+export async function uploadToIPFS(account: algosdk.Account, gateway: string, file: File) {
   // list of API hosts
   // https://github.com/crustio/crust-apps/blob/master/packages/apps-config/src/ipfs-gateway-endpoints/index.ts
-  const apiEndpoint = 'https://gw-seattle.crustcloud.io:443/api/v0/add'
+  const apiEndpoint = `${gateway}/api/v0/add`
 
-  // If you're in browser, you should be able to just use a file directly
+  const pair = ethers.Wallet.createRandom()
+  const sig = await pair.signMessage(pair.address)
+  const authHeaderRaw = `eth-${pair.address}:${sig}`
+  const authHeader = Buffer.from(authHeaderRaw).toString('base64')
+
+  console.log(`Uploading file to IPFS via ${apiEndpoint}`)
+
   const formData = new FormData()
-  formData.append('README.md', fs.createReadStream('./README.md'))
+  formData.append(file.name, file)
 
   const res = await axios.post(apiEndpoint, formData, {
+    params: {
+      'cid-version': 1,
+    },
     headers: {
-      ...headers,
-      // formData.getHeaders() is only required if you're using nodejs
-      ...formData.getHeaders(),
+      Authorization: `Basic ${authHeader}`,
+      'Content-Type': 'multipart/form-data',
     },
   })
 
   const json: { Hash: string; Size: number } = await res.data
+
+  console.log(`File uploaded: ${JSON.stringify(json)}`)
 
   return { cid: json.Hash, size: Number(json.Size) }
 }

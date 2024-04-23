@@ -4,6 +4,7 @@ import { useWallet } from '@txnlab/use-wallet'
 import React, { useState } from 'react'
 import ConnectWallet from './components/ConnectWallet'
 import CrustPin from './components/CrustPin'
+import GatewayUpload from './components/GatewayUpload'
 import { StorageOrderClient } from './contracts/StorageOrderClient'
 import { getAlgodConfigFromViteEnvironment } from './utils/network/getAlgoClientConfigs'
 
@@ -12,7 +13,9 @@ interface HomeProps {}
 
 const Home: React.FC<HomeProps> = () => {
   const [openWalletModal, setOpenWalletModal] = useState<boolean>(false)
-  const [cid, setCid] = useState<string>('bafkreibrr2cpyb6azlystftvf4uba4qt5v2ihdq43xtdefactz3j7snmvy')
+  const [cid, setCid] = useState<string>('')
+  const [size, setSize] = useState<number>(0)
+
   const { activeAddress, signer } = useWallet()
 
   const algodConfig = getAlgodConfigFromViteEnvironment()
@@ -34,40 +37,30 @@ const Home: React.FC<HomeProps> = () => {
   }
 
   return (
-    <div className="hero min-h-screen bg-teal-400">
-      <div className="hero-content text-center rounded-lg p-6 max-w-md bg-white mx-auto">
-        <div className="max-w-md">
-          <h1 className="text-4xl">
-            Welcome to <div className="font-bold">AlgoKit 🙂</div>
-          </h1>
-          <p className="py-6">
-            This starter has been generated using official AlgoKit React template. Refer to the resource below for next steps.
-          </p>
+    <div>
+      <div className="navbar bg-base-100">
+        <div className="navbar-start">
+          <a className="btn btn-ghost text-xl">daisyUI</a>
+        </div>
+        <div className="navbar-end">
+          <a className="btn btn-ghost text-xs" onClick={toggleWalletModal}>
+            {activeAddress ? `${activeAddress.slice(0, 4)}...${activeAddress.slice(54, 58)}` : 'Connect Wallet'}
+          </a>
+        </div>
+      </div>
+      <div className="hero min-h-screen bg-teal-400">
+        <div className="hero-content text-center rounded-lg p-6 max-w-md bg-white mx-auto">
+          <div className="max-w-md">
+            <div className="grid">
+              <GatewayUpload setCid={setCid} setSize={setSize} />
+              <div className="divider" />
+              <label className="label">IPFS CID</label>
+              <input className="input input-bordered" value={cid} onChange={(e) => setCid(e.currentTarget.value)} />
+              <CrustPin sender={activeAddress} cid={cid} algorand={algorand} appClient={appClient} size={size} />
+            </div>
 
-          <div className="grid">
-            <a
-              data-test-id="getting-started"
-              className="btn btn-primary m-2"
-              target="_blank"
-              href="https://github.com/algorandfoundation/algokit-cli"
-            >
-              Getting started
-            </a>
-
-            <div className="divider" />
-            <button data-test-id="connect-wallet" className="btn m-2" onClick={toggleWalletModal}>
-              Wallet Connection
-            </button>
-
-            {activeAddress && (
-              <div>
-                <input className="input input-bordered" value={cid} onChange={(e) => setCid(e.currentTarget.value)} />
-                <CrustPin sender={activeAddress!} cid={cid} algorand={algorand} appClient={appClient} size={22661} />
-              </div>
-            )}
+            <ConnectWallet openModal={openWalletModal} closeModal={toggleWalletModal} />
           </div>
-
-          <ConnectWallet openModal={openWalletModal} closeModal={toggleWalletModal} />
         </div>
       </div>
     </div>
