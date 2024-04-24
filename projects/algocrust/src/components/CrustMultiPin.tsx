@@ -64,7 +64,7 @@ const CrustMultiPin = ({ algorand, appClient, sender }: CrustMultiPinInterface) 
         {loading ? <span className="loading loading-spinner" /> : `Upload file to IPFS`}
       </button>
       <button className="btn m-2" disabled={filesInfo.length === 0 || sender === undefined} onClick={pinFile}>
-        {loading ? <span className="loading loading-spinner" /> : `Pin for ${microAlgos(totalPrice).algos} ALGO`}
+        {loading ? <span className="loading loading-spinner" /> : `Pin for ${microAlgos(totalPrice - 100_000).algos} ALGO`}
       </button>
     </div>
   )
