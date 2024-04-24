@@ -2,8 +2,28 @@ import * as algokit from '@algorandfoundation/algokit-utils'
 import algosdk from 'algosdk'
 import axios from 'axios'
 import { ethers } from 'ethers'
+import { sha256 } from 'js-sha256'
 import nacl from 'tweetnacl'
 import { StorageOrderClient } from '../contracts/StorageOrderClient'
+import { LSIG_TEAL } from './lsig'
+
+export type FileInfo = { cid: string; size: number; price: number }
+
+export const gateways = [
+  'https://gw.crustfiles.net',
+  'https://crustgateway.com',
+  'https://crustipfs.xyz',
+  'https://ipfs-gw.decloud.foundation',
+  'https://gw.w3ipfs.cn:10443',
+  'https://gw.smallwolf.me',
+  'https://gw.w3ipfs.com:7443',
+  'https://gw.w3ipfs.net:7443',
+  'https://crust.fans',
+  'https://crustgateway.online',
+  'https://gw.w3ipfs.org.cn',
+  'https://223.111.148.195',
+  'https://223.111.148.196',
+]
 
 const SIM_REQ = new algosdk.modelsv2.SimulateRequest({ allowEmptySignatures: true, txnGroups: [] })
 const FEE_SINK_SENDER = { addr: 'Y76M3MSY6DKBRHBL7C3NNDXGS5IIMQVQVUAB6MP4XEMMGVF2QWNPL226CA', signer: algosdk.makeEmptyTransactionSigner() }
@@ -127,6 +147,102 @@ export async function placeOrder(
   })
 
   return await appClient.placeOrder({ seed, cid, size, is_permanent: isPermanent, merchant })
+}
+
+async function getLsigAccount(algod: algosdk.Algodv2, templatedTeal: string, lastRound: bigint, funder: string, crustAppId: bigint) {
+  // Replace the template variable in the lsig TEAL
+  const teal = templatedTeal
+    .replace(/TMPL_lastRound/g, lastRound.toString())
+    .replace(/TMPL_funder/g, `0x${Buffer.from(algosdk.decodeAddress(funder).publicKey).toString('hex')}`)
+    .replace(/TMPL_crustAppId/g, crustAppId.toString())
+
+  // Compile the TEAL
+  const result = await algod.compile(Buffer.from(teal)).do()
+  const b64program = result.result
+
+  // Generate a LogicSigAccount object from the compiled program
+  return new algosdk.LogicSigAccount(new Uint8Array(Buffer.from(b64program, 'base64')))
+}
+
+export function getTotalPrice(files: FileInfo[]) {
+  return files.reduce((totalPrice, { price }) => totalPrice + price, 0) + 100_000 + 2_000 * files.length
+}
+
+/**
+ * Places storage orders for a list of files
+ *
+ * @param algod Algod client used to get transaction params
+ * @param appClient App client used to call the storage app
+ * @param sender Account used to fund the lsig
+ * @param files List of files to place orders for
+ * @param isPermanent Whether the file should be added to the renewal pool
+ */
+export async function placeOrdersWithLsig(
+  algorand: algokit.AlgorandClient,
+  appClient: StorageOrderClient,
+  sender: string,
+  files: FileInfo[],
+  isPermanent: boolean,
+  logger: (msg: string) => void = console.log,
+) {
+  const merchant = await getOrderNode(algorand.client.algod, appClient)
+
+  const { lastRound } = await algorand.getSuggestedParams()
+
+  const lsig = await getLsigAccount(
+    algorand.client.algod,
+    LSIG_TEAL,
+    BigInt(lastRound),
+    sender,
+    BigInt((await appClient.appClient.getAppReference()).appId),
+  )
+
+  await algorand.send.payment({
+    sender,
+    receiver: lsig.address(),
+    amount: algokit.microAlgos(getTotalPrice(files)),
+  })
+
+  const signer = algosdk.makeLogicSigAccountTransactionSigner(lsig)
+
+  await Promise.all(
+    files.map(async ({ cid, size, price }) => {
+      const lease = new Uint8Array(Buffer.from(sha256(cid), 'hex'))
+
+      logger(`Placing order for CID ${cid} with price ${price} microALGOs`)
+
+      const seed = {
+        txn: await algorand.transactions.payment({
+          sender: lsig.address(),
+          receiver: (await appClient.appClient.getAppReference()).appAddress,
+          amount: algokit.microAlgos(price),
+          lastValidRound: BigInt(lastRound),
+        }),
+        signer,
+      }
+
+      const atc = await appClient
+        .compose()
+        .placeOrder(
+          {
+            // @ts-expect-error Not sure why algokit complains here... it works
+            seed,
+            cid,
+            size,
+            is_permanent: isPermanent,
+            merchant,
+          },
+          { sender: lsig, lease },
+        )
+        .atc()
+
+      atc.buildGroup()[1].txn.lastRound = lastRound
+
+      const result = await algorand.newGroup().addAtc(atc).execute()
+
+      logger(`Order placed for CID ${cid} with price ${price} microALGOs ${result.txIds[1]}`)
+    }),
+  )
 }
 
 // async function main(network: 'testnet' | 'mainnet') {

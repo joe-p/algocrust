@@ -3,8 +3,7 @@ import { AlgorandClient, Config } from '@algorandfoundation/algokit-utils'
 import { useWallet } from '@txnlab/use-wallet'
 import React, { useState } from 'react'
 import ConnectWallet from './components/ConnectWallet'
-import CrustPin from './components/CrustPin'
-import GatewayUpload from './components/GatewayUpload'
+import CrustMultiPin from './components/CrustMultiPin'
 import { StorageOrderClient } from './contracts/StorageOrderClient'
 import { getAlgodConfigFromViteEnvironment } from './utils/network/getAlgoClientConfigs'
 
@@ -27,7 +26,7 @@ const Home: React.FC<HomeProps> = () => {
       sender: { addr: activeAddress!, signer },
       resolveBy: 'id',
       // id: network === 'testnet' ? 507867511 : 1275319623,
-      id: 1275319623,
+      id: 507867511,
     },
     algorand.client.algod,
   )
@@ -52,11 +51,7 @@ const Home: React.FC<HomeProps> = () => {
         <div className="hero-content text-center rounded-lg p-6 max-w-md bg-white mx-auto">
           <div className="max-w-md">
             <div className="grid">
-              <GatewayUpload setCid={setCid} setSize={setSize} />
-              <div className="divider" />
-              <label className="label">IPFS CID</label>
-              <input className="input input-bordered" value={cid} onChange={(e) => setCid(e.currentTarget.value)} />
-              <CrustPin sender={activeAddress} cid={cid} algorand={algorand} appClient={appClient} size={size} />
+              <CrustMultiPin algorand={algorand} appClient={appClient} sender={activeAddress} />
             </div>
 
             <ConnectWallet openModal={openWalletModal} closeModal={toggleWalletModal} />

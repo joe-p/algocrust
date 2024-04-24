@@ -1,57 +1,65 @@
-import { Contract } from '@algorandfoundation/tealscript';
+import { LogicSig } from '@algorandfoundation/tealscript';
 
-export class AlgoCrustLsig extends Contract {
-  /**
-   * Calculates the sum of two numbers
-   *
-   * @param a
-   * @param b
-   * @returns The sum of a and b
-   */
-  private getSum(a: uint64, b: uint64): uint64 {
-    return a + b;
-  }
+export class AlgoCrustLsig extends LogicSig {
+  lastRound = TemplateVar<uint64>();
 
-  /**
-   * Calculates the difference between two numbers
-   *
-   * @param a
-   * @param b
-   * @returns The difference between a and b.
-   */
-  private getDifference(a: uint64, b: uint64): uint64 {
-    return a >= b ? a - b : b - a;
-  }
+  funder = TemplateVar<Address>();
 
-  /**
-   * A method that takes two numbers and does either addition or subtraction
-   *
-   * @param a The first uint64
-   * @param b The second uint64
-   * @param operation The operation to perform. Can be either 'sum' or 'difference'
-   *
-   * @returns The result of the operation
-   */
-  doMath(a: uint64, b: uint64, operation: string): uint64 {
-    let result: uint64;
+  crustAppId = TemplateVar<AppID>();
 
-    if (operation === 'sum') {
-      result = this.getSum(a, b);
-    } else if (operation === 'difference') {
-      result = this.getDifference(a, b);
-    } else throw Error('Invalid operation');
+  signer = TemplateVar<Address>();
 
-    return result;
-  }
+  // TODO: Add merkle root for CID verification
 
-  /**
-   * A demonstration method used in the AlgoKit fullstack template.
-   * Greets the user by name.
-   *
-   * @param name The name of the user to greet.
-   * @returns A greeting message to the user.
-   */
-  hello(name: string): string {
-    return 'Hello, ' + name;
+  logic(sig: bytes64): void {
+    // The only thing this lsig can do after the last round has past is close to the funder
+    // @ts-expect-error TODO: expose lastValid
+    if (this.txn.lastValid > this.lastRound) {
+      verifyPayTxn(this.txn, {
+        amount: 0,
+        closeRemainderTo: this.funder,
+      });
+
+      return;
+    }
+
+    // If we are closing early, verify the signer has signed the txid
+    if (this.txn.closeRemainderTo === this.funder) {
+      verifyPayTxn(this.txn, {
+        amount: 0,
+      });
+
+      ed25519Verify(this.txn.txID, sig, this.signer);
+
+      return;
+    }
+
+    verifyTxn(this.txn, {
+      rekeyTo: globals.zeroAddress,
+      closeRemainderTo: globals.zeroAddress,
+      lastValid: this.lastRound,
+    });
+
+    assert(this.txnGroup.length === 2);
+
+    const cid = extract3(this.txnGroup[1].applicationArgs[2], 2, 0);
+
+    ed25519Verify(cid, sig, this.signer);
+
+    /*
+    def place_order(
+        seed: pt.abi.PaymentTransaction,
+        merchant: pt.abi.Account,
+        cid: pt.abi.String,
+        size: pt.abi.Uint64,
+        is_permanent: pt.abi.Bool
+    */
+    verifyAppCallTxn(this.txnGroup[1], {
+      applicationID: this.crustAppId,
+      applicationArgs: {
+        0: method('place_order(pay,account,string,uint64,bool)void'),
+      },
+      lease: sha256(cid),
+    });
   }
 }
