@@ -6,6 +6,9 @@
     },
     {
       "path": "projects/algocrust"
+    },
+    {
+      "path": "projects/algocrust_lsig"
     }
   ],
   "settings": {
