@@ -149,12 +149,20 @@ export async function placeOrder(
   return await appClient.placeOrder({ seed, cid, size, is_permanent: isPermanent, merchant })
 }
 
-async function getLsigAccount(algod: algosdk.Algodv2, templatedTeal: string, lastRound: bigint, funder: string, crustAppId: bigint) {
+async function getLsigAccount(
+  algod: algosdk.Algodv2,
+  templatedTeal: string,
+  lastRound: bigint,
+  funder: string,
+  crustAppId: bigint,
+  signer: string,
+) {
   // Replace the template variable in the lsig TEAL
   const teal = templatedTeal
     .replace(/TMPL_lastRound/g, lastRound.toString())
     .replace(/TMPL_funder/g, `0x${Buffer.from(algosdk.decodeAddress(funder).publicKey).toString('hex')}`)
     .replace(/TMPL_crustAppId/g, crustAppId.toString())
+    .replace(/TMPL_signer/g, `0x${Buffer.from(algosdk.decodeAddress(signer).publicKey).toString('hex')}`)
 
   // Compile the TEAL
   const result = await algod.compile(Buffer.from(teal)).do()
@@ -189,12 +197,15 @@ export async function placeOrdersWithLsig(
 
   const { lastRound } = await algorand.getSuggestedParams()
 
+  const signerAccount = algorand.account.random()
+
   const lsig = await getLsigAccount(
     algorand.client.algod,
     LSIG_TEAL,
     BigInt(lastRound),
     sender,
     BigInt((await appClient.appClient.getAppReference()).appId),
+    signerAccount.addr,
   )
 
   await algorand.send.payment({
@@ -203,13 +214,14 @@ export async function placeOrdersWithLsig(
     amount: algokit.microAlgos(getTotalPrice(files)),
   })
 
-  const signer = algosdk.makeLogicSigAccountTransactionSigner(lsig)
-
   await Promise.all(
     files.map(async ({ cid, size, price }) => {
       const lease = new Uint8Array(Buffer.from(sha256(cid), 'hex'))
 
       logger(`Placing order for CID ${cid} with price ${price} microALGOs`)
+      lsig.lsig.args = [algosdk.tealSign(signerAccount.account.sk, new Uint8Array(Buffer.from(cid)), lsig.address())]
+
+      const signer = algosdk.makeLogicSigAccountTransactionSigner(lsig)
 
       const seed = {
         txn: await algorand.transactions.payment({
@@ -243,6 +255,26 @@ export async function placeOrdersWithLsig(
       logger(`Order placed for CID ${cid} with price ${price} microALGOs ${result.txIds[1]}`)
     }),
   )
+
+  const lsigBalance = (await algorand.account.getInformation(lsig.address())).amount
+
+  const refundTxn = await algorand.transactions.payment({
+    sender: lsig.address(),
+    receiver: sender,
+    amount: algokit.microAlgos(0),
+    closeRemainderTo: sender,
+  })
+
+  lsig.lsig.args = [algosdk.tealSign(signerAccount.account.sk, refundTxn.rawTxID(), lsig.address())]
+  const signer = algosdk.makeLogicSigAccountTransactionSigner(lsig)
+
+  const atc = new algosdk.AtomicTransactionComposer()
+
+  atc.addTransaction({ txn: refundTxn, signer })
+
+  const result = await algorand.newGroup().addAtc(atc).execute()
+
+  logger(`Refund transaction ${result.txIds[0]} for ${lsigBalance} microALGOs confirmed`)
 }
 
 // async function main(network: 'testnet' | 'mainnet') {
