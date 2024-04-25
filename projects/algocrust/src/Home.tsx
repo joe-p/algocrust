@@ -4,6 +4,7 @@ import { useWallet } from '@txnlab/use-wallet'
 import React, { useState } from 'react'
 import ConnectWallet from './components/ConnectWallet'
 import CrustDirectoryPin from './components/CrustDirectoryPin'
+import FileTable from './components/FileTable'
 import { StorageOrderClient } from './contracts/StorageOrderClient'
 import { getAlgodConfigFromViteEnvironment } from './utils/network/getAlgoClientConfigs'
 
@@ -12,6 +13,8 @@ interface HomeProps {}
 
 const Home: React.FC<HomeProps> = () => {
   const [openWalletModal, setOpenWalletModal] = useState<boolean>(false)
+  const [uploadedFiles, setUploadedFiles] = useState<{ name: string; cid: string; size: number }[]>([])
+  const [root, setRoot] = useState<{ name: string; cid: string; size: number } | undefined>(undefined)
 
   const { activeAddress, signer } = useWallet()
 
@@ -37,7 +40,7 @@ const Home: React.FC<HomeProps> = () => {
     <div>
       <div className="navbar bg-base-100">
         <div className="navbar-start">
-          <a className="btn btn-ghost text-xl">daisyUI</a>
+          <a className="btn btn-ghost text-xl">AlgoCrust</a>
         </div>
         <div className="navbar-end">
           <a className="btn btn-ghost text-xs" onClick={toggleWalletModal}>
@@ -45,17 +48,19 @@ const Home: React.FC<HomeProps> = () => {
           </a>
         </div>
       </div>
-      <div className="hero min-h-screen bg-teal-400">
-        <div className="hero-content text-center rounded-lg p-6 max-w-md bg-white mx-auto">
-          <div className="max-w-md">
-            <div className="grid">
-              <CrustDirectoryPin algorand={algorand} appClient={appClient} sender={activeAddress} />
-            </div>
-
-            <ConnectWallet openModal={openWalletModal} closeModal={toggleWalletModal} />
-          </div>
-        </div>
+      <div className="grid">
+        <CrustDirectoryPin
+          algorand={algorand}
+          appClient={appClient}
+          sender={activeAddress}
+          root={root}
+          setRoot={setRoot}
+          setUploadedFiles={setUploadedFiles}
+        />
       </div>
+      <FileTable root={root} uploadedFiles={uploadedFiles} />
+
+      <ConnectWallet openModal={openWalletModal} closeModal={toggleWalletModal} />
     </div>
   )
 }

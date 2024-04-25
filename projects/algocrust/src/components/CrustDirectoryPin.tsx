@@ -3,35 +3,35 @@ import { useSnackbar } from 'notistack'
 import { useState } from 'react'
 import { StorageOrderClient } from '../contracts/StorageOrderClient'
 import { directoryUploadToIPFS, gateways, getPrice, placeOrder } from '../utils/crust'
-
 interface CrustDirectoryPinInterface {
   algorand: AlgorandClient
   appClient: StorageOrderClient
   sender: string | undefined
+  root: { name: string; cid: string; size: number } | undefined
+  setRoot: (root: { name: string; cid: string; size: number }) => void
+  setUploadedFiles: (files: { name: string; cid: string; size: number }[]) => void
 }
 
-const CrustDirectoryPin = ({ algorand, appClient, sender }: CrustDirectoryPinInterface) => {
+const CrustDirectoryPin = ({ algorand, appClient, sender, root, setRoot, setUploadedFiles }: CrustDirectoryPinInterface) => {
   const [loading, setLoading] = useState<boolean>(false)
   const [files, setFiles] = useState<File[]>([])
   const [gateway, setGateway] = useState<string>(gateways[0])
   const [price, setPrice] = useState<number>(0)
-  const [cid, setCid] = useState<string>('')
-  const [size, setSize] = useState<number>(0)
   const { enqueueSnackbar } = useSnackbar()
 
   const uploadFiles = async () => {
     setLoading(true)
     try {
       const uploadedFiles = await directoryUploadToIPFS(gateway, files)
-      const root = uploadedFiles.find((x) => x.name === '')
-      if (root === undefined) {
+      const rootDir = uploadedFiles.find((x) => x.name === '')
+      if (rootDir === undefined) {
         throw new Error('Root directory not found')
       }
 
-      setCid(root.cid)
-      setSize(root.size)
+      setRoot(rootDir)
+      setUploadedFiles(uploadedFiles)
 
-      const rootPrice = await getPrice(algorand, appClient, root.size, true)
+      const rootPrice = await getPrice(algorand, appClient, rootDir.size, true)
       setPrice(rootPrice)
     } catch (e) {
       enqueueSnackbar(JSON.stringify(e), { variant: 'error' })
@@ -44,7 +44,8 @@ const CrustDirectoryPin = ({ algorand, appClient, sender }: CrustDirectoryPinInt
 
   const pinFile = async () => {
     setLoading(true)
-    await placeOrder(algorand, appClient, sender!, cid, size, price, true)
+    if (root === undefined) throw new Error('Root directory not found')
+    await placeOrder(algorand, appClient, sender!, root.cid, root.size, price, true)
     setLoading(false)
   }
 
