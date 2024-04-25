@@ -7,7 +7,7 @@ import nacl from 'tweetnacl'
 import { StorageOrderClient } from '../contracts/StorageOrderClient'
 import { LSIG_TEAL } from './lsig'
 
-export type FileInfo = { cid: string; size: number; price: number }
+export type FileInfo = { name: string; cid: string; size: number; price: number }
 
 export const gateways = [
   'https://gw.crustfiles.net',
@@ -77,6 +77,52 @@ export async function uploadToIPFS(account: algosdk.Account, gateway: string, fi
   console.log(`File uploaded: ${JSON.stringify(json)}`)
 
   return { cid: json.Hash, size: Number(json.Size) }
+}
+
+/**
+ * upload a file to IPFS and get its CID and size
+ *
+ * @param account Account to use to generate the auth header
+ */
+export async function directoryUploadToIPFS(gateway: string, files: File[]) {
+  // list of API hosts
+  // https://github.com/crustio/crust-apps/blob/master/packages/apps-config/src/ipfs-gateway-endpoints/index.ts
+  const apiEndpoint = `${gateway}/api/v0/add`
+
+  const pair = ethers.Wallet.createRandom()
+  const sig = await pair.signMessage(pair.address)
+  const authHeaderRaw = `eth-${pair.address}:${sig}`
+  const authHeader = Buffer.from(authHeaderRaw).toString('base64')
+
+  console.log(`Uploading file to IPFS via ${apiEndpoint}`)
+
+  const formData = new FormData()
+  files.forEach((file) => {
+    formData.append(`/roo/${file.name}`, file)
+  })
+
+  const res = await axios.post(apiEndpoint, formData, {
+    params: {
+      'cid-version': 1,
+      'wrap-with-directory': 'true',
+    },
+    headers: {
+      Authorization: `Basic ${authHeader}`,
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+
+  const data: string = await res.data
+
+  const uploadedFiles: { name: string; cid: string; size: number }[] = data
+    .split('\n')
+    .filter((line) => line)
+    .map((line) => JSON.parse(line))
+    .map((file) => ({ name: file.Name, cid: file.Hash, size: Number(file.Size) }))
+
+  console.log(`Files uploaded: ${JSON.stringify(uploadedFiles)}`)
+
+  return uploadedFiles
 }
 
 /**

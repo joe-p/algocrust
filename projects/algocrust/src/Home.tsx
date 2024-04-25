@@ -3,7 +3,7 @@ import { AlgorandClient, Config } from '@algorandfoundation/algokit-utils'
 import { useWallet } from '@txnlab/use-wallet'
 import React, { useState } from 'react'
 import ConnectWallet from './components/ConnectWallet'
-import CrustMultiPin from './components/CrustMultiPin'
+import CrustDirectoryPin from './components/CrustDirectoryPin'
 import { StorageOrderClient } from './contracts/StorageOrderClient'
 import { getAlgodConfigFromViteEnvironment } from './utils/network/getAlgoClientConfigs'
 
@@ -49,7 +49,7 @@ const Home: React.FC<HomeProps> = () => {
         <div className="hero-content text-center rounded-lg p-6 max-w-md bg-white mx-auto">
           <div className="max-w-md">
             <div className="grid">
-              <CrustMultiPin algorand={algorand} appClient={appClient} sender={activeAddress} />
+              <CrustDirectoryPin algorand={algorand} appClient={appClient} sender={activeAddress} />
             </div>
 
             <ConnectWallet openModal={openWalletModal} closeModal={toggleWalletModal} />
