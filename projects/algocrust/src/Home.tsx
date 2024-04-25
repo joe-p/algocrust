@@ -12,8 +12,6 @@ interface HomeProps {}
 
 const Home: React.FC<HomeProps> = () => {
   const [openWalletModal, setOpenWalletModal] = useState<boolean>(false)
-  const [cid, setCid] = useState<string>('')
-  const [size, setSize] = useState<number>(0)
 
   const { activeAddress, signer } = useWallet()
 
@@ -26,7 +24,7 @@ const Home: React.FC<HomeProps> = () => {
       sender: { addr: activeAddress!, signer },
       resolveBy: 'id',
       // id: network === 'testnet' ? 507867511 : 1275319623,
-      id: 507867511,
+      id: 1275319623,
     },
     algorand.client.algod,
   )

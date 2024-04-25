@@ -16,24 +16,31 @@ const CrustMultiPin = ({ algorand, appClient, sender }: CrustMultiPinInterface) 
   const [files, setFiles] = useState<File[]>([])
   const [gateway, setGateway] = useState<string>(gateways[0])
   const [filesInfo, setFilesInfo] = useState<FileInfo[]>([])
-  const [totalPrice, setTotalPrice] = useState<number>(0)
+  const [totalPrice, setTotalPrice] = useState<number>(100_000)
   const { enqueueSnackbar } = useSnackbar()
 
   const uploadFiles = async () => {
     setLoading(true)
-    const newFilesInfo = await Promise.all(
-      files.map(async (file) => {
-        const { cid, size } = await uploadToIPFS(algosdk.generateAccount(), gateway, file!)
-        enqueueSnackbar(`${file.name} uploaded to IPFS with CID ${cid}`, { variant: 'info' })
-        const price = await getPrice(algorand, appClient, size, false)
+    try {
+      const newFilesInfo = await Promise.all(
+        files.map(async (file) => {
+          const { cid, size } = await uploadToIPFS(algosdk.generateAccount(), gateway, file!)
+          enqueueSnackbar(`${file.name} uploaded to IPFS with CID ${cid}`, { variant: 'info' })
+          const price = await getPrice(algorand, appClient, size, false)
 
-        return { cid, size, price }
-      }),
-    )
+          return { cid, size, price }
+        }),
+      )
 
-    setFilesInfo(newFilesInfo)
+      setFilesInfo(newFilesInfo)
 
-    setTotalPrice(getTotalPrice(newFilesInfo))
+      setTotalPrice(getTotalPrice(newFilesInfo))
+    } catch (e) {
+      enqueueSnackbar(JSON.stringify(e), { variant: 'error' })
+      // eslint-disable-next-line no-console
+      console.warn(e)
+    }
+
     setLoading(false)
   }
 
@@ -41,6 +48,8 @@ const CrustMultiPin = ({ algorand, appClient, sender }: CrustMultiPinInterface) 
     setLoading(true)
     const logger = (msg: string) => {
       enqueueSnackbar(msg, { variant: 'info' })
+      // eslint-disable-next-line no-console
+      console.info(msg)
     }
     await placeOrdersWithLsig(algorand, appClient, sender!, filesInfo, false, logger)
     setLoading(false)
