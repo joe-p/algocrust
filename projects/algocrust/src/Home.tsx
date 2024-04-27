@@ -4,7 +4,6 @@ import { useWallet } from '@txnlab/use-wallet'
 import React, { useState } from 'react'
 import ConnectWallet from './components/ConnectWallet'
 import CrustDirectoryPin from './components/CrustDirectoryPin'
-import FileTable from './components/FileTable'
 import { StorageOrderClient } from './contracts/StorageOrderClient'
 import { getAlgodConfigFromViteEnvironment } from './utils/network/getAlgoClientConfigs'
 
@@ -13,8 +12,6 @@ interface HomeProps {}
 
 const Home: React.FC<HomeProps> = () => {
   const [openWalletModal, setOpenWalletModal] = useState<boolean>(false)
-  const [uploadedFiles, setUploadedFiles] = useState<{ name: string; cid: string; size: number }[]>([])
-  const [root, setRoot] = useState<{ name: string; cid: string; size: number } | undefined>(undefined)
 
   const { activeAddress, signer } = useWallet()
 
@@ -48,15 +45,7 @@ const Home: React.FC<HomeProps> = () => {
           </a>
         </div>
       </div>
-      <CrustDirectoryPin
-        algorand={algorand}
-        appClient={appClient}
-        sender={activeAddress}
-        root={root}
-        setRoot={setRoot}
-        setUploadedFiles={setUploadedFiles}
-      />
-      <FileTable root={root} uploadedFiles={uploadedFiles} />
+      <CrustDirectoryPin algorand={algorand} appClient={appClient} sender={activeAddress} />
 
       <ConnectWallet openModal={openWalletModal} closeModal={toggleWalletModal} />
     </div>

@@ -3,20 +3,22 @@ import { useSnackbar } from 'notistack'
 import { useState } from 'react'
 import { StorageOrderClient } from '../contracts/StorageOrderClient'
 import { directoryUploadToIPFS, gateways, getPrice, placeOrder } from '../utils/crust'
+import FileTable from './FileTable'
+
 interface CrustDirectoryPinInterface {
   algorand: AlgorandClient
   appClient: StorageOrderClient
   sender: string | undefined
-  root: { name: string; cid: string; size: number } | undefined
-  setRoot: (root: { name: string; cid: string; size: number }) => void
-  setUploadedFiles: (files: { name: string; cid: string; size: number }[]) => void
 }
 
-const CrustDirectoryPin = ({ algorand, appClient, sender, root, setRoot, setUploadedFiles }: CrustDirectoryPinInterface) => {
+const CrustDirectoryPin = ({ algorand, appClient, sender }: CrustDirectoryPinInterface) => {
   const [loading, setLoading] = useState<boolean>(false)
   const [files, setFiles] = useState<File[]>([])
   const [gateway, setGateway] = useState<string>(gateways[0])
   const [price, setPrice] = useState<number>(0)
+  const [uploadedFiles, setUploadedFiles] = useState<{ name: string; cid: string; size: number }[]>([])
+  const [root, setRoot] = useState<{ name: string; cid: string; size: number } | undefined>(undefined)
+
   const { enqueueSnackbar } = useSnackbar()
 
   const uploadFiles = async () => {
@@ -69,6 +71,7 @@ const CrustDirectoryPin = ({ algorand, appClient, sender, root, setRoot, setUplo
       <button className="btn m-2" disabled={sender === undefined} onClick={pinFile}>
         {loading ? <span className="loading loading-spinner" /> : `Pin for ${microAlgos(price).algos} ALGO`}
       </button>
+      <FileTable root={root} uploadedFiles={uploadedFiles} />
     </div>
   )
 }
