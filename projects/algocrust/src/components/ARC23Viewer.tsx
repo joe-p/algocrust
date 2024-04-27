@@ -4,6 +4,7 @@ import { CID } from 'multiformats/cid'
 import { useSnackbar } from 'notistack'
 import { useState } from 'react'
 import { gateways, getFileFromGateway } from '../utils/crust'
+import { verifyArc23Tealscript } from '../utils/tealscript'
 interface ARC23ViewerInterface {
   algorand: AlgorandClient
 }
@@ -14,6 +15,7 @@ const ARC23Viewer = ({ algorand }: ARC23ViewerInterface) => {
   const [appId, setAppId] = useState<number>(1796294669)
   const [loading, setLoading] = useState<boolean>(false)
   const [source, setSource] = useState<string>('')
+  const [verified, setVerified] = useState<boolean>(false)
 
   const getSource = async () => {
     setLoading(true)
@@ -36,7 +38,19 @@ const ARC23Viewer = ({ algorand }: ARC23ViewerInterface) => {
     const cid = CID.parse(hex, base16)
     console.log(cid.toString())
 
-    setSource(await (await getFileFromGateway(gateway, `${cid.toString()}/application.ts`)).text())
+    const arc23Source = await (await getFileFromGateway(gateway, `${cid.toString()}/application.ts`)).text()
+
+    setSource(arc23Source)
+
+    const verifiedStatus = await verifyArc23Tealscript(algorand.client.algod, arc23Source, teal)
+
+    if (verifiedStatus) {
+      enqueueSnackbar('ARC23 TEALScript verified', { variant: 'success' })
+    } else {
+      enqueueSnackbar('ARC23 TEALScript verification failed', { variant: 'error' })
+    }
+
+    setVerified(verifiedStatus)
 
     setLoading(false)
   }
@@ -57,7 +71,9 @@ const ARC23Viewer = ({ algorand }: ARC23ViewerInterface) => {
       </button>
       <br />
       <br />
-
+      <span>Verified: {loading ? <span className="loading loading-spinner" /> : verified ? '✅' : '❌'} </span>
+      <br />
+      <br />
       <pre className="bg-base-200">{source}</pre>
     </div>
   )
