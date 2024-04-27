@@ -7,8 +7,8 @@ import { StorageOrderClient } from '../contracts/StorageOrderClient'
 import { LSIG_TEAL } from './lsig'
 
 export type FileInfo = { name: string; cid: string; size: number; price: number }
-
-export const gateways = [
+export const gateways = ['https://cloudflare-ipfs.com', 'https://ipfs.algonode.xyz']
+export const kuboApis = [
   'https://gw.crustfiles.net',
   'https://crustgateway.com',
   'https://crustipfs.xyz',
@@ -41,6 +41,17 @@ function getAuthHeaderFromAccount(account: algosdk.Account) {
   const authStr = `sub-0x${pubKeyHex}:0x${sigHex}`
 
   return Buffer.from(authStr).toString('base64')
+}
+
+export async function getFileFromGateway(gateway: string, path: string): Promise<Blob> {
+  const url = `${gateway}/ipfs/${path}`
+  console.log(`Downloading file from ${url}`)
+
+  const res = await axios.get(url, {
+    responseType: 'blob',
+  })
+
+  return res.data as Blob
 }
 
 /**

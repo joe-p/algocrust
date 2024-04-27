@@ -5,7 +5,7 @@ import { CID } from 'multiformats/cid'
 import { useSnackbar } from 'notistack'
 import { useState } from 'react'
 import { StorageOrderClient } from '../contracts/StorageOrderClient'
-import { directoryUploadToIPFS, gateways, getPrice, placeOrder } from '../utils/crust'
+import { directoryUploadToIPFS, getPrice, kuboApis, placeOrder } from '../utils/crust'
 import FileTable from './FileTable'
 
 interface ARC23GeneratorInterface {
@@ -34,7 +34,7 @@ async function parseJsonFile(file: File): Promise<any> {
 
 const ARC23Generator = ({ algorand, appClient, sender }: ARC23GeneratorInterface) => {
   const [loading, setLoading] = useState<boolean>(false)
-  const [gateway, setGateway] = useState<string>(gateways[0])
+  const [kuboApi, setKuboApi] = useState<string>(kuboApis[0])
   const [price, setPrice] = useState<number>(0)
   const [uploadedFiles, setUploadedFiles] = useState<{ name: string; cid: string; size: number }[]>([])
   const [root, setRoot] = useState<{ name: string; cid: string; size: number } | undefined>(undefined)
@@ -56,7 +56,7 @@ const ARC23Generator = ({ algorand, appClient, sender }: ARC23GeneratorInterface
       if (app === undefined) throw new Error('Must upload app source')
       if (arc32 === undefined) throw new Error('Must upload ARC32 JSON')
 
-      const uploadedFiles = await directoryUploadToIPFS(gateway, [
+      const uploadedFiles = await directoryUploadToIPFS(kuboApi, [
         renameFile(approval, 'approval.teal'),
         renameFile(clear, 'clear.teal'),
         renameFile(contract, 'contract.json'),
@@ -129,9 +129,9 @@ const ARC23Generator = ({ algorand, appClient, sender }: ARC23GeneratorInterface
 
   return (
     <div>
-      <label className="label m-2">IPFS Gateway</label>
-      <select className="select select-bordered" onChange={(e) => setGateway(e.currentTarget.value)}>
-        {gateways.map((x) => (
+      <label className="label m-2">IPFS Kubo API</label>
+      <select className="select select-bordered" onChange={(e) => setKuboApi(e.currentTarget.value)}>
+        {kuboApis.map((x) => (
           <option key={x}>{x}</option>
         ))}
       </select>

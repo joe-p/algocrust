@@ -3,7 +3,7 @@ import algosdk from 'algosdk'
 import { useSnackbar } from 'notistack'
 import { useState } from 'react'
 import { StorageOrderClient } from '../contracts/StorageOrderClient'
-import { FileInfo, gateways, getPrice, getTotalPrice, placeOrdersWithLsig, uploadToIPFS } from '../utils/crust'
+import { FileInfo, getPrice, getTotalPrice, kuboApis, placeOrdersWithLsig, uploadToIPFS } from '../utils/crust'
 
 interface CrustMultiPinInterface {
   algorand: AlgorandClient
@@ -14,7 +14,7 @@ interface CrustMultiPinInterface {
 const CrustMultiPin = ({ algorand, appClient, sender }: CrustMultiPinInterface) => {
   const [loading, setLoading] = useState<boolean>(false)
   const [files, setFiles] = useState<File[]>([])
-  const [gateway, setGateway] = useState<string>(gateways[0])
+  const [kuboApi, setKuboApi] = useState<string>(kuboApis[0])
   const [filesInfo, setFilesInfo] = useState<FileInfo[]>([])
   const [totalPrice, setTotalPrice] = useState<number>(100_000)
   const { enqueueSnackbar } = useSnackbar()
@@ -24,7 +24,7 @@ const CrustMultiPin = ({ algorand, appClient, sender }: CrustMultiPinInterface) 
     try {
       const newFilesInfo = await Promise.all(
         files.map(async (file) => {
-          const { cid, size } = await uploadToIPFS(algosdk.generateAccount(), gateway, file!)
+          const { cid, size } = await uploadToIPFS(algosdk.generateAccount(), kuboApi, file!)
           enqueueSnackbar(`${file.name} uploaded to IPFS with CID ${cid}`, { variant: 'info' })
           const price = await getPrice(algorand, appClient, size, false)
 
@@ -57,9 +57,9 @@ const CrustMultiPin = ({ algorand, appClient, sender }: CrustMultiPinInterface) 
 
   return (
     <div>
-      <label className="label m-2">IPFS Gateway</label>
-      <select className="select select-bordered" onChange={(e) => setGateway(e.currentTarget.value)}>
-        {gateways.map((x) => (
+      <label className="label m-2">IPFS Kubo API</label>
+      <select className="select select-bordered" onChange={(e) => setKuboApi(e.currentTarget.value)}>
+        {kuboApis.map((x) => (
           <option key={x}>{x}</option>
         ))}
       </select>
