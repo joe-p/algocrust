@@ -1,7 +1,6 @@
 import * as algokit from '@algorandfoundation/algokit-utils'
 import algosdk from 'algosdk'
 import axios from 'axios'
-import { ethers } from 'ethers'
 import { sha256 } from 'js-sha256'
 import nacl from 'tweetnacl'
 import { StorageOrderClient } from '../contracts/StorageOrderClient'
@@ -31,13 +30,15 @@ const FEE_SINK_SENDER = { addr: 'Y76M3MSY6DKBRHBL7C3NNDXGS5IIMQVQVUAB6MP4XEMMGVF
 /**
  * Generate a web3 auth header from an Algorand account
  */
-function getAuthHeader(account: algosdk.Account) {
-  const sk32 = account.sk.slice(0, 32)
-  const signingKey = nacl.sign.keyPair.fromSeed(sk32)
+function getAuthHeaderFromAccount(account: algosdk.Account) {
+  const { publicKey } = algosdk.decodeAddress(account.addr)
+  const signature = nacl.sign.detached(publicKey, account.sk)
 
-  const signature = nacl.sign(Buffer.from(account.addr), signingKey.secretKey)
-  const sigHex = Buffer.from(signature).toString('hex').slice(0, 128)
-  const authStr = `sub-${account.addr}:0x${sigHex}`
+  const pubKeyHex = Buffer.from(publicKey).toString('hex')
+  const sigHex = Buffer.from(signature).toString('hex')
+
+  // Use substrate pubkey since its also ed25519
+  const authStr = `sub-0x${pubKeyHex}:0x${sigHex}`
 
   return Buffer.from(authStr).toString('base64')
 }
@@ -47,15 +48,10 @@ function getAuthHeader(account: algosdk.Account) {
  *
  * @param account Account to use to generate the auth header
  */
-export async function uploadToIPFS(account: algosdk.Account, gateway: string, file: File) {
+export async function uploadToIPFS(gateway: string, file: File) {
   // list of API hosts
   // https://github.com/crustio/crust-apps/blob/master/packages/apps-config/src/ipfs-gateway-endpoints/index.ts
   const apiEndpoint = `${gateway}/api/v0/add`
-
-  const pair = ethers.Wallet.createRandom()
-  const sig = await pair.signMessage(pair.address)
-  const authHeaderRaw = `eth-${pair.address}:${sig}`
-  const authHeader = Buffer.from(authHeaderRaw).toString('base64')
 
   console.log(`Uploading file to IPFS via ${apiEndpoint}`)
 
@@ -67,7 +63,7 @@ export async function uploadToIPFS(account: algosdk.Account, gateway: string, fi
       'cid-version': 1,
     },
     headers: {
-      Authorization: `Basic ${authHeader}`,
+      Authorization: `Basic ${getAuthHeaderFromAccount(algosdk.generateAccount())}`,
       'Content-Type': 'multipart/form-data',
     },
   })
@@ -89,11 +85,6 @@ export async function directoryUploadToIPFS(gateway: string, files: File[]) {
   // https://github.com/crustio/crust-apps/blob/master/packages/apps-config/src/ipfs-gateway-endpoints/index.ts
   const apiEndpoint = `${gateway}/api/v0/add`
 
-  const pair = ethers.Wallet.createRandom()
-  const sig = await pair.signMessage(pair.address)
-  const authHeaderRaw = `eth-${pair.address}:${sig}`
-  const authHeader = Buffer.from(authHeaderRaw).toString('base64')
-
   console.log(`Uploading file to IPFS via ${apiEndpoint}`)
 
   const formData = new FormData()
@@ -107,7 +98,7 @@ export async function directoryUploadToIPFS(gateway: string, files: File[]) {
       'wrap-with-directory': 'true',
     },
     headers: {
-      Authorization: `Basic ${authHeader}`,
+      Authorization: `Basic ${getAuthHeaderFromAccount(algosdk.generateAccount())}`,
       'Content-Type': 'multipart/form-data',
     },
   })
