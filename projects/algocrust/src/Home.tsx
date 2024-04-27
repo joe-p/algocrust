@@ -40,7 +40,7 @@ const Home: React.FC<HomeProps> = () => {
     <div>
       <div className="navbar bg-base-100">
         <div className="navbar-start">
-          <a className="btn btn-ghost text-xl">AlgoCrust</a>
+          <a className="btn btn-ghost text-xl">Upload & Pin</a>
         </div>
         <div className="navbar-end">
           <a className="btn btn-ghost text-xs" onClick={toggleWalletModal}>
@@ -48,16 +48,14 @@ const Home: React.FC<HomeProps> = () => {
           </a>
         </div>
       </div>
-      <div className="grid">
-        <CrustDirectoryPin
-          algorand={algorand}
-          appClient={appClient}
-          sender={activeAddress}
-          root={root}
-          setRoot={setRoot}
-          setUploadedFiles={setUploadedFiles}
-        />
-      </div>
+      <CrustDirectoryPin
+        algorand={algorand}
+        appClient={appClient}
+        sender={activeAddress}
+        root={root}
+        setRoot={setRoot}
+        setUploadedFiles={setUploadedFiles}
+      />
       <FileTable root={root} uploadedFiles={uploadedFiles} />
 
       <ConnectWallet openModal={openWalletModal} closeModal={toggleWalletModal} />
